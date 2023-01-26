@@ -1,22 +1,18 @@
-use std::collections::HashSet;
-
 use anyhow::anyhow;
 use serenity::async_trait;
-use serenity::framework::standard::macros::{command, group, help};
+use serenity::framework::standard::macros::{command, group,};
 use serenity::framework::standard::{
-    Args, CommandGroup, CommandResult, HelpOptions, StandardFramework,
+    CommandResult, StandardFramework,
 };
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
-use serenity::model::prelude::UserId;
 use serenity::prelude::*;
 use shuttle_secrets::SecretStore;
 use tracing::info;
 
 #[group]
 #[commands(avatar)]
-struct General;
-
+struct Info;
 struct Handler;
 
 #[async_trait]
@@ -32,8 +28,7 @@ async fn serenity(
 ) -> shuttle_service::ShuttleSerenity {
     let framework = StandardFramework::new()
         .configure(|c| c.prefix("fl."))
-        .group(&GENERAL_GROUP)
-        .help(&HELP_COMMAND);
+        .group(&INFO_GROUP);
 
     let token = if let Some(token) = secret_store.get("DISCORD_TOKEN") {
         token
