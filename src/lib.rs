@@ -27,7 +27,7 @@ async fn serenity(
 ) -> shuttle_service::ShuttleSerenity {
     let framework = StandardFramework::new()
         .configure(|c| c.prefix("fl."))
-        .group(&GENERAL_GROUP)
+        .group(&GENERAL_GROUP);
 
     let token = if let Some(token) = secret_store.get("DISCORD_TOKEN") {
         token
@@ -57,7 +57,7 @@ async fn avatar(ctx: &Context, msg: &Message) -> CommandResult {
         Some(url) => url,
     };
     if error == true {
-        return Err(())
+        Err(())
     }
     msg.reply(ctx, avatar).await?;
 
