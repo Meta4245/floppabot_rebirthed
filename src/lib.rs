@@ -4,7 +4,7 @@ use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
 use shuttle_secrets::SecretStore;
-use tracing::{error, info};
+use tracing::info;
 use serenity::framework::standard::macros::{command, group};
 use serenity::framework::standard::{StandardFramework, CommandResult};
 
@@ -48,17 +48,13 @@ async fn serenity(
 
 #[command]
 async fn avatar(ctx: &Context, msg: &Message) -> CommandResult {
-    let error = false;
     let avatar = match msg.author.avatar_url() {
         None => {
-            msg.reply(ctx, "Failure acquiring avatar.");
-            error = true;
+            msg.reply(ctx, "Failure acquiring avatar.").await?;
+            String::from("")
         },
         Some(url) => url,
     };
-    if error == true {
-        Err(())
-    }
     msg.reply(ctx, avatar).await?;
 
     Ok(())
