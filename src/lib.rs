@@ -1,12 +1,17 @@
+use std::collections::HashSet;
+
 use anyhow::anyhow;
 use serenity::async_trait;
+use serenity::framework::standard::macros::{command, group, help};
+use serenity::framework::standard::{
+    help_commands::*, help_commands, Args, CommandGroup, CommandResult, HelpOptions, StandardFramework,
+};
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
+use serenity::model::prelude::UserId;
 use serenity::prelude::*;
 use shuttle_secrets::SecretStore;
 use tracing::info;
-use serenity::framework::standard::macros::{command, group};
-use serenity::framework::standard::{StandardFramework, CommandResult};
 
 #[group]
 #[commands(avatar)]
@@ -27,7 +32,8 @@ async fn serenity(
 ) -> shuttle_service::ShuttleSerenity {
     let framework = StandardFramework::new()
         .configure(|c| c.prefix("fl."))
-        .group(&GENERAL_GROUP);
+        .group(&GENERAL_GROUP)
+        .help(&HELP_COMMAND);
 
     let token = if let Some(token) = secret_store.get("DISCORD_TOKEN") {
         token
@@ -47,15 +53,31 @@ async fn serenity(
 }
 
 #[command]
+#[description("Gets the avatar of the person who said the command.")]
 async fn avatar(ctx: &Context, msg: &Message) -> CommandResult {
     let avatar = match msg.author.avatar_url() {
         None => {
             msg.reply(ctx, "Failure acquiring avatar.").await?;
             String::from("")
-        },
+        }
         Some(url) => url,
     };
     msg.reply(ctx, avatar).await?;
 
+    Ok(())
+}
+
+#[help]
+#[command_not_found_text = "Could not find command: `{}`."]
+#[max_levenshtein_distance(3)]
+async fn help_command(
+    context: &Context,
+    msg: &Message,
+    args: Args,
+    help_options: &'static HelpOptions,
+    groups: &[&'static CommandGroup],
+    owners: HashSet<UserId>,
+) -> CommandResult {
+    let _ = help_commands::with_embeds(context, msg, args, help_options, groups, owners).await;
     Ok(())
 }
