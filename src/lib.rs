@@ -4,7 +4,7 @@ use anyhow::anyhow;
 use serenity::async_trait;
 use serenity::framework::standard::macros::{command, group, help};
 use serenity::framework::standard::{
-    help_commands::*, help_commands, Args, CommandGroup, CommandResult, HelpOptions, StandardFramework,
+    Args, CommandGroup, CommandResult, HelpOptions, StandardFramework,
 };
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
@@ -64,20 +64,5 @@ async fn avatar(ctx: &Context, msg: &Message) -> CommandResult {
     };
     msg.reply(ctx, avatar).await?;
 
-    Ok(())
-}
-
-#[help]
-#[command_not_found_text = "Could not find command: `{}`."]
-#[max_levenshtein_distance(3)]
-async fn help_command(
-    context: &Context,
-    msg: &Message,
-    args: Args,
-    help_options: &'static HelpOptions,
-    groups: &[&'static CommandGroup],
-    owners: HashSet<UserId>,
-) -> CommandResult {
-    let _ = help_commands::with_embeds(context, msg, args, help_options, groups, owners).await;
     Ok(())
 }
