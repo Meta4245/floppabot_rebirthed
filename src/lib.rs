@@ -1,6 +1,7 @@
-use anyhow::anyhow;
+use anyhow::Context as _;
 use poise::serenity_prelude as serenity;
 use shuttle_secrets::SecretStore;
+use shuttle_service::ShuttlePoise;
 
 struct Data {}
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -22,17 +23,10 @@ async fn register(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 #[shuttle_service::main]
-async fn serenity(
-    #[shuttle_secrets::Secrets] secret_store: SecretStore,
-) -> shuttle_service::ShuttlePoise<Data, Error> {
-    let token = if let Some(token) = secret_store.get("DISCORD_TOKEN") {
-        token
-    } else {
-        return Err(anyhow!(
-            "'DISCORD_TOKEN' was not found in Secrets.toml (add Secrets.toml in base directory)"
-        )
-        .into());
-    };
+async fn poise(#[shuttle_secrets::Secrets] secret_store: SecretStore) -> ShuttlePoise<Data, Error> {
+    let discord_token = secret_store
+        .get("DISCORD_TOKEN")
+        .context("'DISCORD_TOKEN' was not found")?;
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
@@ -44,10 +38,8 @@ async fn serenity(
             commands: vec![avatar(), register()],
             ..Default::default()
         })
-        .token(token)
-        .intents(
-            serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT,
-        )
+        .token(discord_token)
+        .intents(serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT)
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
