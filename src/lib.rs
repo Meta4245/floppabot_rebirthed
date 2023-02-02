@@ -16,7 +16,7 @@ async fn avatar(ctx: Context<'_>, #[description = "User you want to get avatar o
 }
 
 #[poise::command(prefix_command)]
-pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
+async fn register(ctx: Context<'_>) -> Result<(), Error> {
     poise::builtins::register_application_commands_buttons(ctx).await?;
     Ok(())
 }
