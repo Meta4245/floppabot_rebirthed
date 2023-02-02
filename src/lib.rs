@@ -12,22 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #![allow(dead_code, non_snake_case)]
-use anyhow::Context as _;
+
+mod secrets;
+use secrets::*;
 use poise::serenity_prelude as serenity;
 use serde::Deserialize;
-use shuttle_secrets::SecretStore;
 use shuttle_service::ShuttlePoise;
-
-#[macro_use]
-extern crate lazy_static;
 
 struct Data {}
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
-
-lazy_static! {
-    static ref secrets_store: SecretStore;
-}
 
 #[derive(Deserialize)]
 struct Breeds {
@@ -82,7 +76,7 @@ async fn cat_image(ctx: Context<'_>) -> Result<(), Error> {
     let client = reqwest::Client::new();
     let response = client
         .get("https://api.thecatapi.com/v1/images/search")
-        .header("x-api-key", secrets_store.get(CAT_API_KEY).context("'CAT_API_KEY' was not found in Secrets.toml")?)
+        .header("x-api-key", CAT_API_KEY)
         .send()
         .await?
         .text()
@@ -131,12 +125,7 @@ async fn register(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 #[shuttle_service::main]
-async fn poise(#[shuttle_secrets::Secrets] secret_store: SecretStore) -> ShuttlePoise<Data, Error> {
-    secret_store = secrets_store;
-
-    let discord_token = secret_store
-        .get("DISCORD_TOKEN")
-        .context("'DISCORD_TOKEN' was not found in Secrets.toml")?;
+async fn poise() -> ShuttlePoise<Data, Error> {
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
@@ -148,7 +137,7 @@ async fn poise(#[shuttle_secrets::Secrets] secret_store: SecretStore) -> Shuttle
             commands: vec![avatar(), register(), animals()],
             ..Default::default()
         })
-        .token(discord_token)
+        .token(DISCORD_TOKEN)
         .intents(
             serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT,
         )
