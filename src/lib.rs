@@ -18,9 +18,16 @@ use serde::Deserialize;
 use shuttle_secrets::SecretStore;
 use shuttle_service::ShuttlePoise;
 
+#[macro_use]
+extern crate lazy_static;
+
 struct Data {}
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
+
+lazy_static! {
+    static ref secrets_store: SecretStore;
+}
 
 #[derive(Deserialize)]
 struct Breeds {
@@ -42,13 +49,6 @@ struct CatAPIResponse {
     height: String,
     url: String,
     breeds: Vec<Breeds>,
-}
-
-#[derive(Deserialize)]
-struct Secrets {
-    DISCORD_TOKEN: String,
-    CAT_API_KEY: String,
-    DOG_API_KEY: String,
 }
 
 fn handle_option(handle: &Option<String>) -> String {
@@ -80,12 +80,9 @@ async fn animals(_ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(slash_command)]
 async fn cat_image(ctx: Context<'_>) -> Result<(), Error> {
     let client = reqwest::Client::new();
-    let root = project_root::get_project_root()?;
-    let toml_file = std::fs::read_to_string(root)?;
-    let secrets: Secrets = toml::from_str(toml_file.as_str())?;
     let response = client
         .get("https://api.thecatapi.com/v1/images/search")
-        .header("x-api-key", secrets.CAT_API_KEY)
+        .header("x-api-key", secrets_store.get(CAT_API_KEY).context("'CAT_API_KEY' was not found in Secrets.toml")?)
         .send()
         .await?
         .text()
@@ -135,9 +132,11 @@ async fn register(ctx: Context<'_>) -> Result<(), Error> {
 
 #[shuttle_service::main]
 async fn poise(#[shuttle_secrets::Secrets] secret_store: SecretStore) -> ShuttlePoise<Data, Error> {
+    secret_store = secrets_store;
+
     let discord_token = secret_store
         .get("DISCORD_TOKEN")
-        .context("'DISCORD_TOKEN' was not found")?;
+        .context("'DISCORD_TOKEN' was not found in Secrets.toml")?;
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
