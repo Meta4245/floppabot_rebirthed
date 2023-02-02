@@ -1,23 +1,30 @@
 use anyhow::anyhow;
 use poise::serenity_prelude as serenity;
 use shuttle_secrets::SecretStore;
-use tracing::info;
 
 struct Data {}
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
 
-#[async_trait]
-impl EventHandler for Handler {
-    async fn ready(&self, _: Context, ready: Ready) {
-        info!("{} is connected!", ready.user.name);
-    }
+#[poise::command(slash_command)]
+async fn avatar(ctx: Context<'_>, #[description = "User you want to get avatar of"] user: Option<serenity::User>) -> Result<(), Error> {
+    let u = user.as_ref().unwrap_or_else(|| ctx.author());
+    let response = u.avatar_url().unwrap_or_else(|| String::from("Error getting user avatar"));
+    ctx.say(response).await?;
+
+    Ok(())
+}
+
+#[poise::command(prefix_command)]
+pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
+    poise::builtins::register_application_commands_buttons(ctx).await?;
+    Ok(())
 }
 
 #[shuttle_service::main]
 async fn serenity(
     #[shuttle_secrets::Secrets] secret_store: SecretStore,
-) -> shuttle_service::ShuttleSerenity {
+) -> shuttle_service::ShuttlePoise<Data, Error> {
     let token = if let Some(token) = secret_store.get("DISCORD_TOKEN") {
         token
     } else {
@@ -46,28 +53,10 @@ async fn serenity(
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {})
             })
-        });
+        })
+        .build()
+        .await
+        .map_err(shuttle_service::error::CustomError::new)?;
 
-    framework.run().await.unwrap();
-    Ok(client)
-}
-
-#[poise::command(slash_command)]
-async fn avatar(ctx: Context<'_>, msg: &serenity::Message) -> CommandResult {
-    let avatar = match msg.author.avatar_url() {
-        None => {
-            ctx.say("Failure acquiring avatar.").await?;
-            String::from("")
-        }
-        Some(url) => url,
-    };
-    ctx.say(avatar).await?;
-
-    Ok(())
-}
-
-#[poise::command(prefix_command)]
-pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
-    poise::builtins::register_application_commands_buttons(ctx).await?;
-    Ok(())
+    Ok(framework)
 }
