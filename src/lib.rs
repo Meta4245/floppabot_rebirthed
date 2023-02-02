@@ -29,11 +29,18 @@ async fn serenity(
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![avatar()],
+            prefix_options: poise::PrefixFrameworkOptions {
+                prefix: Some("fl.".into()),
+                case_insensitive_commands: true,
+                ..Default::default()
+            },
+            commands: vec![avatar(), register()],
             ..Default::default()
         })
         .token(token)
-        .intents(serenity::GatewayIntents::non_privileged())
+        .intents(
+            serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT,
+        )
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
@@ -56,5 +63,11 @@ async fn avatar(ctx: Context<'_>, msg: &serenity::Message) -> CommandResult {
     };
     ctx.say(avatar).await?;
 
+    Ok(())
+}
+
+#[poise::command(prefix_command)]
+pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
+    poise::builtins::register_application_commands_buttons(ctx).await?;
     Ok(())
 }
