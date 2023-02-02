@@ -1,19 +1,11 @@
 use anyhow::anyhow;
-use serenity::async_trait;
-use serenity::framework::standard::macros::{command, group,};
-use serenity::framework::standard::{
-    CommandResult, StandardFramework,
-};
-use serenity::model::channel::Message;
-use serenity::model::gateway::Ready;
-use serenity::prelude::*;
+use poise::serenity_prelude as serenity;
 use shuttle_secrets::SecretStore;
 use tracing::info;
 
-#[group]
-#[commands(avatar)]
-struct Info;
-struct Handler;
+struct Data {}
+type Error = Box<dyn std::error::Error + Send + Sync>;
+type Context<'a> = poise::Context<'a, Data, Error>;
 
 #[async_trait]
 impl EventHandler for Handler {
@@ -26,38 +18,43 @@ impl EventHandler for Handler {
 async fn serenity(
     #[shuttle_secrets::Secrets] secret_store: SecretStore,
 ) -> shuttle_service::ShuttleSerenity {
-    let framework = StandardFramework::new()
-        .configure(|c| c.prefix("fl."))
-        .group(&INFO_GROUP);
-
     let token = if let Some(token) = secret_store.get("DISCORD_TOKEN") {
         token
     } else {
-        return Err(anyhow!("'DISCORD_TOKEN' was not found").into());
+        return Err(anyhow!(
+            "'DISCORD_TOKEN' was not found in Secrets.toml (add Secrets.toml in base directory)"
+        )
+        .into());
     };
 
-    let intents = GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT;
+    let framework = poise::Framework::builder()
+        .options(poise::FrameworkOptions {
+            commands: vec![avatar()],
+            ..Default::default()
+        })
+        .token(token)
+        .intents(serenity::GatewayIntents::non_privileged())
+        .setup(|ctx, _ready, framework| {
+            Box::pin(async move {
+                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+                Ok(Data {})
+            })
+        });
 
-    let client = Client::builder(&token, intents)
-        .event_handler(Handler)
-        .framework(framework)
-        .await
-        .expect("Error creating client");
-
+    framework.run().await.unwrap();
     Ok(client)
 }
 
-#[command]
-#[description("Gets the avatar of the person who said the command.")]
-async fn avatar(ctx: &Context, msg: &Message) -> CommandResult {
+#[poise::command(slash_command)]
+async fn avatar(ctx: Context<'_>, msg: &serenity::Message) -> CommandResult {
     let avatar = match msg.author.avatar_url() {
         None => {
-            msg.reply(ctx, "Failure acquiring avatar.").await?;
+            ctx.say("Failure acquiring avatar.").await?;
             String::from("")
         }
         Some(url) => url,
     };
-    msg.reply(ctx, avatar).await?;
+    ctx.say(avatar).await?;
 
     Ok(())
 }
