@@ -14,109 +14,15 @@
 #![allow(dead_code, non_snake_case)]
 
 mod secrets;
+mod commands;
 use secrets::*;
+use commands::*;
 use poise::serenity_prelude as serenity;
-use serde::Deserialize;
 use shuttle_service::ShuttlePoise;
 
-struct Data {}
-type Error = Box<dyn std::error::Error + Send + Sync>;
-type Context<'a> = poise::Context<'a, Data, Error>;
-
-#[derive(Deserialize)]
-struct Breeds {
-    weight: Option<Vec<String>>,
-    id: Option<String>,
-    name: Option<String>,
-    temperament: Option<String>,
-    origin: Option<String>,
-    country_codes: Option<String>,
-    country_code: Option<String>,
-    life_span: Option<String>,
-    wikipedia_url: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct CatAPIResponse {
-    id: String,
-    width: String,
-    height: String,
-    url: String,
-    breeds: Vec<Breeds>,
-}
-
-fn handle_option(handle: &Option<String>) -> String {
-    match handle {
-        Some(value) => value.to_string(),
-        None => String::from("No Info"),
-    }
-}
-
-#[poise::command(slash_command)]
-async fn avatar(
-    ctx: Context<'_>,
-    #[description = "User you want to get avatar of"] user: Option<serenity::User>,
-) -> Result<(), Error> {
-    let u = user.as_ref().unwrap_or_else(|| ctx.author());
-    let response = u
-        .avatar_url()
-        .unwrap_or_else(|| String::from("Error getting user avatar"));
-    ctx.say(response).await?;
-
-    Ok(())
-}
-
-#[poise::command(slash_command, subcommands("cat_image"))]
-async fn animals(_ctx: Context<'_>) -> Result<(), Error> {
-    Ok(())
-}
-
-#[poise::command(slash_command)]
-async fn cat_image(ctx: Context<'_>) -> Result<(), Error> {
-    let client = reqwest::Client::new();
-    let response = client
-        .get("https://api.thecatapi.com/v1/images/search")
-        .header("x-api-key", CAT_API_KEY)
-        .send()
-        .await?
-        .text()
-        .await?;
-    let parsed: CatAPIResponse = serde_json::from_str(response.as_str())?;
-    let no_info: &mut Vec<String> = &mut Vec::new();
-    no_info.push(String::from(""));
-    no_info.push(String::from("No Info"));
-    let weight = match &parsed.breeds[0].weight {
-        Some(a) => a,
-        None => no_info,
-    };
-    ctx.send(|m| {
-        m.content("").embed(|e| {
-            e.title("Random Cat")
-                .image(parsed.url)
-                .field("Breed Name", &weight[1], true)
-                .field("Weight", handle_option(&parsed.breeds[0].name), true)
-                .field(
-                    "Temperament",
-                    handle_option(&parsed.breeds[0].temperament),
-                    true,
-                )
-                .field(
-                    "Origin Country",
-                    handle_option(&parsed.breeds[0].origin),
-                    true,
-                )
-                .field("Lifespan", handle_option(&parsed.breeds[0].life_span), true)
-                .field(
-                    "Wikipedia URL",
-                    handle_option(&parsed.breeds[0].wikipedia_url),
-                    true,
-                )
-        })
-    })
-    .await?;
-
-    Ok(())
-}
+pub struct Data {}
+pub type Error = Box<dyn std::error::Error + Send + Sync>;
+pub type Context<'a> = poise::Context<'a, Data, Error>;
 
 #[poise::command(prefix_command)]
 async fn register(ctx: Context<'_>) -> Result<(), Error> {
@@ -126,7 +32,6 @@ async fn register(ctx: Context<'_>) -> Result<(), Error> {
 
 #[shuttle_service::main]
 async fn poise() -> ShuttlePoise<Data, Error> {
-
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             prefix_options: poise::PrefixFrameworkOptions {
@@ -134,7 +39,24 @@ async fn poise() -> ShuttlePoise<Data, Error> {
                 case_insensitive_commands: true,
                 ..Default::default()
             },
-            commands: vec![avatar(), register(), animals()],
+            on_error: |err| {
+                Box::pin(async move {
+                    match err {
+                        poise::FrameworkError::Command { ctx, .. } => {
+                            println!(
+                                "An error occured: {:?}",
+                                ctx.invocation_data::<&str>().await.as_deref()
+                            );
+                        }
+                        err => poise::builtins::on_error(err).await.unwrap(),
+                    }
+                })
+            },
+            commands: vec![
+                register(),
+                images::animals(),
+                info::userinfo(),
+            ],
             ..Default::default()
         })
         .token(DISCORD_TOKEN)
