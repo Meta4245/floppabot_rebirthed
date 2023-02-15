@@ -13,22 +13,16 @@
 // limitations under the License.
 #![allow(dead_code, non_snake_case)]
 
-mod secrets;
 mod commands;
-use secrets::*;
+mod secrets;
 use commands::*;
 use poise::serenity_prelude as serenity;
+use secrets::*;
 use shuttle_service::ShuttlePoise;
 
 pub struct Data {}
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Context<'a> = poise::Context<'a, Data, Error>;
-
-#[poise::command(prefix_command)]
-async fn register(ctx: Context<'_>) -> Result<(), Error> {
-    poise::builtins::register_application_commands_buttons(ctx).await?;
-    Ok(())
-}
 
 #[shuttle_service::main]
 async fn poise() -> ShuttlePoise<Data, Error> {
@@ -52,11 +46,7 @@ async fn poise() -> ShuttlePoise<Data, Error> {
                     }
                 })
             },
-            commands: vec![
-                register(),
-                images::animals(),
-                info::userinfo(),
-            ],
+            commands: vec![images::animals(), info::userinfo()],
             ..Default::default()
         })
         .token(DISCORD_TOKEN)

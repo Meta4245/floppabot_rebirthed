@@ -1,18 +1,21 @@
 // Copyright 2023 EagleOnGitHub
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
-// 
+//
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{Context, Error, secrets::CAT_API_KEY};
+use crate::{
+    secrets::{CAT_API_KEY, DOG_API_KEY},
+    Context, Error,
+};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -29,64 +32,149 @@ struct Breeds {
 }
 
 #[derive(Deserialize)]
-struct CatAPIResponse {
+struct AnimalAPIResponse {
     id: String,
-    width: String,
-    height: String,
+    width: i16,
+    height: i16,
     url: String,
-    breeds: Vec<Breeds>,
+    breeds: Option<Vec<Breeds>>,
 }
 
-pub fn handle_option(handle: &Option<String>) -> String {
-    match handle {
-        Some(value) => value.to_string(),
-        None => String::from("No Info"),
-    }
+fn request_animalapi(cat: bool) -> Vec<AnimalAPIResponse> {
+    let url: String;
+    url = match cat {
+        true => {
+            format!(
+                "https://api.thecatapi.com/v1/images/search?api_key={}",
+                CAT_API_KEY
+            )
+        }
+        false => {
+            format!(
+                "https://api.thedogapi.com/v1/images/search?api_key={}",
+                DOG_API_KEY
+            )
+        }
+    };
+    ureq::get(&url)
+        .call()
+        .expect("error in req")
+        .into_json()
+        .expect("error in req")
 }
 
 #[poise::command(slash_command)]
 pub async fn cat_image(ctx: Context<'_>) -> Result<(), Error> {
-    let client = reqwest::Client::new();
-    let response = client
-        .get("https://api.thecatapi.com/v1/images/search")
-        .header("x-api-key", CAT_API_KEY)
-        .send()
-        .await?
-        .text()
-        .await?;
-    let parsed: CatAPIResponse = serde_json::from_str(response.as_str())?;
-    let no_info: &mut Vec<String> = &mut Vec::new();
-    no_info.push(String::from(""));
-    no_info.push(String::from("No Info"));
-    let weight = match &parsed.breeds[0].weight {
-        Some(a) => a,
-        None => no_info,
-    };
+    let button_uuid = ctx.id();
+    let parsed = request_animalapi(true);
+
     ctx.send(|m| {
-        m.content("").embed(|e| {
-            e.title("Random Cat")
-                .image(parsed.url)
-                .field("Breed Name", &weight[1], true)
-                .field("Weight", handle_option(&parsed.breeds[0].name), true)
-                .field(
-                    "Temperament",
-                    handle_option(&parsed.breeds[0].temperament),
-                    true,
-                )
-                .field(
-                    "Origin Country",
-                    handle_option(&parsed.breeds[0].origin),
-                    true,
-                )
-                .field("Lifespan", handle_option(&parsed.breeds[0].life_span), true)
-                .field(
-                    "Wikipedia URL",
-                    handle_option(&parsed.breeds[0].wikipedia_url),
-                    true,
-                )
-        })
+        m.content("")
+            .embed(|e| {
+                e.title("Random Cat");
+                e.image(&parsed[0].url)
+            })
+            .components(|c| {
+                c.create_action_row(|ar| {
+                    ar.create_button(|b| {
+                        b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                            .label("New Cat")
+                            .custom_id(button_uuid)
+                    })
+                })
+            })
     })
     .await?;
+
+    while let Some(mci) = poise::serenity_prelude::CollectComponentInteraction::new(ctx)
+        .author_id(ctx.author().id)
+        .channel_id(ctx.channel_id())
+        .timeout(std::time::Duration::from_secs(120))
+        .filter(move |mci| mci.data.custom_id == button_uuid.to_string())
+        .await
+    {
+        let mut msg = mci.message.clone();
+        msg.edit(ctx, |m| {
+            m.content("")
+                .embed(|e| {
+                    e.title("Random Cat");
+                    e.image(&request_animalapi(true)[0].url)
+                })
+                .components(|c| {
+                    c.create_action_row(|ar| {
+                        ar.create_button(|b| {
+                            b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                                .label("New Cat")
+                                .custom_id(button_uuid)
+                        })
+                    })
+                })
+        })
+        .await?;
+
+        mci.create_interaction_response(ctx, |ir| {
+            ir.kind(poise::serenity_prelude::InteractionResponseType::DeferredUpdateMessage)
+        })
+        .await?;
+    }
+
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+pub async fn dog_image(ctx: Context<'_>) -> Result<(), Error> {
+    let button_uuid = ctx.id();
+    let parsed = request_animalapi(false);
+
+    ctx.send(|m| {
+        m.content("")
+            .embed(|e| {
+                e.title("Random Dog");
+                e.image(&parsed[0].url)
+            })
+            .components(|c| {
+                c.create_action_row(|ar| {
+                    ar.create_button(|b| {
+                        b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                            .label("New Dog")
+                            .custom_id(button_uuid)
+                    })
+                })
+            })
+    })
+    .await?;
+
+    while let Some(mci) = poise::serenity_prelude::CollectComponentInteraction::new(ctx)
+        .author_id(ctx.author().id)
+        .channel_id(ctx.channel_id())
+        .timeout(std::time::Duration::from_secs(120))
+        .filter(move |mci| mci.data.custom_id == button_uuid.to_string())
+        .await
+    {
+        let mut msg = mci.message.clone();
+        msg.edit(ctx, |m| {
+            m.content("")
+                .embed(|e| {
+                    e.title("Random Dog");
+                    e.image(&request_animalapi(false)[0].url)
+                })
+                .components(|c| {
+                    c.create_action_row(|ar| {
+                        ar.create_button(|b| {
+                            b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                                .label("New Dog")
+                                .custom_id(button_uuid)
+                        })
+                    })
+                })
+        })
+        .await?;
+
+        mci.create_interaction_response(ctx, |ir| {
+            ir.kind(poise::serenity_prelude::InteractionResponseType::DeferredUpdateMessage)
+        })
+        .await?;
+    }
 
     Ok(())
 }
