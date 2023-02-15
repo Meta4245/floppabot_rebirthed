@@ -13,11 +13,24 @@
 // limitations under the License.
 
 use crate::{
-    commands::subcommands_images::{cat_image, dog_image},
+    commands::subcommands_images::{
+        bird_image, cat_image, cat_image2, cat_image3, dog_image, fox_image, shiba_image,
+    },
     Context, Error,
 };
 
-#[poise::command(slash_command, subcommands("cat_image", "dog_image"))]
+#[poise::command(
+    slash_command,
+    subcommands(
+        "cat_image",
+        "dog_image",
+        "fox_image",
+        "shiba_image",
+        "bird_image",
+        "cat_image2",
+        "cat_image3"
+    )
+)]
 pub async fn animals(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
