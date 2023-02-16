@@ -46,7 +46,12 @@ async fn poise() -> ShuttlePoise<Data, Error> {
                     }
                 })
             },
-            commands: vec![images::animals(), info::userinfo()],
+            commands: vec![
+                images::animals(),
+                images::anime(),
+                info::userinfo(),
+                fun::fun(),
+            ],
             ..Default::default()
         })
         .token(DISCORD_TOKEN)

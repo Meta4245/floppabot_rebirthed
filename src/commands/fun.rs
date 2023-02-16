@@ -13,27 +13,11 @@
 // limitations under the License.
 
 use crate::{
-    commands::subcommands_images::{
-        bird, cat, cat2, cat3, dog, dog2, duck, fox, httpcat, httpdog, kitsune, neko, neko2, neko3,
-        okami, shiba,
-    },
+    subcommands_fun::{ascii, uwuifier},
     Context, Error,
 };
 
-#[poise::command(
-    slash_command,
-    subcommands(
-        "cat", "dog", "fox", "shiba", "bird", "cat2", "cat3", "httpcat", "httpdog", "duck", "dog2"
-    )
-)]
-pub async fn animals(_ctx: Context<'_>) -> Result<(), Error> {
-    Ok(())
-}
-
-#[poise::command(
-    slash_command,
-    subcommands("neko", "neko2", "neko3", "kitsune", "okami")
-)]
-pub async fn anime(_ctx: Context<'_>) -> Result<(), Error> {
+#[poise::command(slash_command, subcommands("ascii", "uwuifier"))]
+pub async fn fun(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }

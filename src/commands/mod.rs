@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod fun;
 pub mod images;
 pub mod info;
+pub mod subcommands_fun;
 pub mod subcommands_images;
 pub mod subcommands_info;

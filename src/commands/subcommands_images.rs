@@ -52,10 +52,61 @@ struct AWSRandomCat {
     file: String,
 }
 
+#[derive(Deserialize)]
+struct RandomDog {
+    #[serde(rename = "fileSizeBytes")]
+    file_size_bytes: i128,
+    url: String,
+}
+
+#[derive(Deserialize)]
+struct RandomDuck {
+    url: String,
+    message: String,
+}
+
+#[derive(Deserialize)]
+struct PurrbotImage {
+    error: bool,
+    link: String,
+    time: i16,
+}
+
+#[derive(Deserialize)]
+struct WaifuPics {
+    url: String,
+}
+
 enum AnimalOnlineChoices {
     Bird,
     Shibe,
     Cat,
+}
+
+enum PurrbotImageChoices {
+    Kitsune,
+    Neko,
+    Okami,
+}
+
+impl PurrbotImageChoices {
+    fn as_str(&self) -> &'static str {
+        match self {
+            PurrbotImageChoices::Kitsune => "kitsune",
+            PurrbotImageChoices::Okami => "okami",
+            PurrbotImageChoices::Neko => "neko",
+        }
+    }
+}
+
+impl AnimalOnlineChoices {
+    fn as_str(&self) -> &'static str {
+        match self {
+            AnimalOnlineChoices::Bird => "birds",
+            AnimalOnlineChoices::Shibe => "shibes",
+            AnimalOnlineChoices::Cat => "cats",
+        }
+    }
 }
 
 fn request_animalapi(cat: bool) -> Vec<AnimalAPIResponse> {
@@ -90,11 +141,7 @@ fn request_fox() -> RandomFox {
 }
 
 fn request_animalonline(animal: AnimalOnlineChoices) -> String {
-    let url = match animal {
-        AnimalOnlineChoices::Bird => "http://shibe.online/api/birds",
-        AnimalOnlineChoices::Shibe => "http://shibe.online/api/shibes",
-        AnimalOnlineChoices::Cat => "http://shibe.online/api/cats",
-    };
+    let url = format!("http://shibe.online/api/{}", animal.as_str());
     let mut shibe = ureq::get(&url)
         .call()
         .expect("error in req")
@@ -112,8 +159,49 @@ fn request_awscat() -> AWSRandomCat {
         .expect("error in json")
 }
 
+fn request_randomdog() -> RandomDog {
+    ureq::get("https://random.dog/woof.json")
+        .call()
+        .expect("error in req")
+        .into_json()
+        .expect("error in json")
+}
+
+fn request_randomduck() -> RandomDuck {
+    ureq::get("https://random-d.uk/api/v2/random")
+        .call()
+        .expect("error in req")
+        .into_json()
+        .expect("error in json")
+}
+
+fn request_purrbot(choice: PurrbotImageChoices) -> PurrbotImage {
+    let url = format!("https://purrbot.site/api/img/sfw/{}/img", choice.as_str());
+    ureq::get(url.as_str())
+        .call()
+        .expect("error in req")
+        .into_json()
+        .expect("error in json")
+}
+
+fn request_waifupics(neko: bool) -> String {
+    let complete = match neko {
+        true => "neko",
+        false => "waifu",
+    };
+    let url = format!("https://api.waifu.pics/sfw/{}", complete);
+    let response: WaifuPics = ureq::get(url.as_str())
+        .call()
+        .expect("error in req")
+        .into_json()
+        .expect("error in json");
+    response.url
+}
+
+// animals
+
 #[poise::command(slash_command)]
-pub async fn cat_image(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn cat(ctx: Context<'_>) -> Result<(), Error> {
     let button_uuid = ctx.id();
     let parsed = request_animalapi(true);
 
@@ -171,7 +259,7 @@ pub async fn cat_image(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 #[poise::command(slash_command)]
-pub async fn dog_image(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn dog(ctx: Context<'_>) -> Result<(), Error> {
     let button_uuid = ctx.id();
     let parsed = request_animalapi(false);
 
@@ -229,7 +317,7 @@ pub async fn dog_image(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 #[poise::command(slash_command)]
-pub async fn fox_image(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn fox(ctx: Context<'_>) -> Result<(), Error> {
     let button_uuid = ctx.id();
     let parsed = request_fox();
 
@@ -287,7 +375,7 @@ pub async fn fox_image(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 #[poise::command(slash_command)]
-pub async fn shiba_image(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn shiba(ctx: Context<'_>) -> Result<(), Error> {
     let button_uuid = ctx.id();
     let parsed = request_animalonline(AnimalOnlineChoices::Shibe);
 
@@ -345,7 +433,7 @@ pub async fn shiba_image(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 #[poise::command(slash_command)]
-pub async fn bird_image(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn bird(ctx: Context<'_>) -> Result<(), Error> {
     let button_uuid = ctx.id();
     let parsed = request_animalonline(AnimalOnlineChoices::Bird);
 
@@ -403,7 +491,7 @@ pub async fn bird_image(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 #[poise::command(slash_command)]
-pub async fn cat_image2(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn cat2(ctx: Context<'_>) -> Result<(), Error> {
     let button_uuid = ctx.id();
     let parsed = request_animalonline(AnimalOnlineChoices::Cat);
 
@@ -461,7 +549,7 @@ pub async fn cat_image2(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 #[poise::command(slash_command)]
-pub async fn cat_image3(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn cat3(ctx: Context<'_>) -> Result<(), Error> {
     let button_uuid = ctx.id();
     let parsed = request_awscat().file;
 
@@ -502,6 +590,444 @@ pub async fn cat_image3(ctx: Context<'_>) -> Result<(), Error> {
                         ar.create_button(|b| {
                             b.style(poise::serenity_prelude::ButtonStyle::Primary)
                                 .label("New Cat")
+                                .custom_id(button_uuid)
+                        })
+                    })
+                })
+        })
+        .await?;
+
+        mci.create_interaction_response(ctx, |ir| {
+            ir.kind(poise::serenity_prelude::InteractionResponseType::DeferredUpdateMessage)
+        })
+        .await?;
+    }
+
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+pub async fn duck(ctx: Context<'_>) -> Result<(), Error> {
+    let button_uuid = ctx.id();
+    let parsed = request_randomduck();
+
+    ctx.send(|m| {
+        m.content("")
+            .embed(|e| {
+                e.title("Random Duck");
+                e.image(&parsed.url)
+            })
+            .components(|c| {
+                c.create_action_row(|ar| {
+                    ar.create_button(|b| {
+                        b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                            .label("New Duck")
+                            .custom_id(button_uuid)
+                    })
+                })
+            })
+    })
+    .await?;
+
+    while let Some(mci) = poise::serenity_prelude::CollectComponentInteraction::new(ctx)
+        .author_id(ctx.author().id)
+        .channel_id(ctx.channel_id())
+        .timeout(std::time::Duration::from_secs(120))
+        .filter(move |mci| mci.data.custom_id == button_uuid.to_string())
+        .await
+    {
+        let mut msg = mci.message.clone();
+        msg.edit(ctx, |m| {
+            m.content("")
+                .embed(|e| {
+                    e.title("Random Duck");
+                    e.image(&request_randomduck().url)
+                })
+                .components(|c| {
+                    c.create_action_row(|ar| {
+                        ar.create_button(|b| {
+                            b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                                .label("New Duck")
+                                .custom_id(button_uuid)
+                        })
+                    })
+                })
+        })
+        .await?;
+
+        mci.create_interaction_response(ctx, |ir| {
+            ir.kind(poise::serenity_prelude::InteractionResponseType::DeferredUpdateMessage)
+        })
+        .await?;
+    }
+
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+pub async fn dog2(ctx: Context<'_>) -> Result<(), Error> {
+    let button_uuid = ctx.id();
+    let parsed = request_randomdog();
+
+    ctx.send(|m| {
+        m.content("")
+            .embed(|e| {
+                e.title("Random Dog");
+                e.image(&parsed.url)
+            })
+            .components(|c| {
+                c.create_action_row(|ar| {
+                    ar.create_button(|b| {
+                        b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                            .label("New Dog")
+                            .custom_id(button_uuid)
+                    })
+                })
+            })
+    })
+    .await?;
+
+    while let Some(mci) = poise::serenity_prelude::CollectComponentInteraction::new(ctx)
+        .author_id(ctx.author().id)
+        .channel_id(ctx.channel_id())
+        .timeout(std::time::Duration::from_secs(120))
+        .filter(move |mci| mci.data.custom_id == button_uuid.to_string())
+        .await
+    {
+        let mut msg = mci.message.clone();
+        msg.edit(ctx, |m| {
+            m.content("")
+                .embed(|e| {
+                    e.title("Random Dog");
+                    e.image(&request_randomdog().url)
+                })
+                .components(|c| {
+                    c.create_action_row(|ar| {
+                        ar.create_button(|b| {
+                            b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                                .label("New Dog")
+                                .custom_id(button_uuid)
+                        })
+                    })
+                })
+        })
+        .await?;
+
+        mci.create_interaction_response(ctx, |ir| {
+            ir.kind(poise::serenity_prelude::InteractionResponseType::DeferredUpdateMessage)
+        })
+        .await?;
+    }
+
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+pub async fn httpcat(
+    ctx: Context<'_>,
+    #[description = "The HTTP code"] code: i16,
+) -> Result<(), Error> {
+    let send = format!("https://http.cat/{}", code);
+    ctx.say(send).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+pub async fn httpdog(
+    ctx: Context<'_>,
+    #[description = "The HTTP code"] code: i16,
+) -> Result<(), Error> {
+    let send = format!("https://http.dog/{}", code);
+    ctx.say(send).await?;
+    Ok(())
+}
+
+// anime
+
+#[poise::command(slash_command)]
+pub async fn neko(ctx: Context<'_>) -> Result<(), Error> {
+    let button_uuid = ctx.id();
+    let parsed = nekosbest::get(nekosbest::Category::Neko).await?;
+
+    ctx.send(|m| {
+        m.content("")
+            .embed(|e| {
+                e.title("Random Neko");
+                e.image(&parsed.url)
+            })
+            .components(|c| {
+                c.create_action_row(|ar| {
+                    ar.create_button(|b| {
+                        b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                            .label("New Neko")
+                            .custom_id(button_uuid)
+                    })
+                })
+            })
+    })
+    .await?;
+
+    while let Some(mci) = poise::serenity_prelude::CollectComponentInteraction::new(ctx)
+        .author_id(ctx.author().id)
+        .channel_id(ctx.channel_id())
+        .timeout(std::time::Duration::from_secs(120))
+        .filter(move |mci| mci.data.custom_id == button_uuid.to_string())
+        .await
+    {
+        let response = nekosbest::get(nekosbest::Category::Neko).await?.url;
+        let mut msg = mci.message.clone();
+        msg.edit(ctx, |m| {
+            m.content("")
+                .embed(|e| {
+                    e.title("Random Neko");
+                    e.image(&response)
+                })
+                .components(|c| {
+                    c.create_action_row(|ar| {
+                        ar.create_button(|b| {
+                            b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                                .label("New Neko")
+                                .custom_id(button_uuid)
+                        })
+                    })
+                })
+        })
+        .await?;
+
+        mci.create_interaction_response(ctx, |ir| {
+            ir.kind(poise::serenity_prelude::InteractionResponseType::DeferredUpdateMessage)
+        })
+        .await?;
+    }
+
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+pub async fn neko2(ctx: Context<'_>) -> Result<(), Error> {
+    let button_uuid = ctx.id();
+    let parsed = request_waifupics(true);
+
+    ctx.send(|m| {
+        m.content("")
+            .embed(|e| {
+                e.title("Random Neko");
+                e.image(&parsed)
+            })
+            .components(|c| {
+                c.create_action_row(|ar| {
+                    ar.create_button(|b| {
+                        b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                            .label("New Neko")
+                            .custom_id(button_uuid)
+                    })
+                })
+            })
+    })
+    .await?;
+
+    while let Some(mci) = poise::serenity_prelude::CollectComponentInteraction::new(ctx)
+        .author_id(ctx.author().id)
+        .channel_id(ctx.channel_id())
+        .timeout(std::time::Duration::from_secs(120))
+        .filter(move |mci| mci.data.custom_id == button_uuid.to_string())
+        .await
+    {
+        let mut msg = mci.message.clone();
+        msg.edit(ctx, |m| {
+            m.content("")
+                .embed(|e| {
+                    e.title("Random Neko");
+                    e.image(&request_waifupics(true))
+                })
+                .components(|c| {
+                    c.create_action_row(|ar| {
+                        ar.create_button(|b| {
+                            b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                                .label("New Neko")
+                                .custom_id(button_uuid)
+                        })
+                    })
+                })
+        })
+        .await?;
+
+        mci.create_interaction_response(ctx, |ir| {
+            ir.kind(poise::serenity_prelude::InteractionResponseType::DeferredUpdateMessage)
+        })
+        .await?;
+    }
+
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+pub async fn neko3(ctx: Context<'_>) -> Result<(), Error> {
+    let button_uuid = ctx.id();
+    let parsed = request_purrbot(PurrbotImageChoices::Neko);
+
+    ctx.send(|m| {
+        m.content("")
+            .embed(|e| {
+                e.title("Random Neko");
+                e.image(&parsed.link);
+                e.field("API Response Time", &parsed.time, true)
+            })
+            .components(|c| {
+                c.create_action_row(|ar| {
+                    ar.create_button(|b| {
+                        b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                            .label("New Neko")
+                            .custom_id(button_uuid)
+                    })
+                })
+            })
+    })
+    .await?;
+
+    while let Some(mci) = poise::serenity_prelude::CollectComponentInteraction::new(ctx)
+        .author_id(ctx.author().id)
+        .channel_id(ctx.channel_id())
+        .timeout(std::time::Duration::from_secs(120))
+        .filter(move |mci| mci.data.custom_id == button_uuid.to_string())
+        .await
+    {
+        let response = request_purrbot(PurrbotImageChoices::Neko);
+        let mut msg = mci.message.clone();
+        msg.edit(ctx, |m| {
+            m.content("")
+                .embed(|e| {
+                    e.title("Random Neko");
+                    e.image(&response.link);
+                    e.field("API Response Time", &response.time, true)
+                })
+                .components(|c| {
+                    c.create_action_row(|ar| {
+                        ar.create_button(|b| {
+                            b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                                .label("New Neko")
+                                .custom_id(button_uuid)
+                        })
+                    })
+                })
+        })
+        .await?;
+
+        mci.create_interaction_response(ctx, |ir| {
+            ir.kind(poise::serenity_prelude::InteractionResponseType::DeferredUpdateMessage)
+        })
+        .await?;
+    }
+
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+pub async fn okami(ctx: Context<'_>) -> Result<(), Error> {
+    let button_uuid = ctx.id();
+    let parsed = request_purrbot(PurrbotImageChoices::Okami);
+
+    ctx.send(|m| {
+        m.content("")
+            .embed(|e| {
+                e.title("Random Okami");
+                e.image(&parsed.link);
+                e.field("API Response Time", &parsed.time, true)
+            })
+            .components(|c| {
+                c.create_action_row(|ar| {
+                    ar.create_button(|b| {
+                        b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                            .label("New Okami")
+                            .custom_id(button_uuid)
+                    })
+                })
+            })
+    })
+    .await?;
+
+    while let Some(mci) = poise::serenity_prelude::CollectComponentInteraction::new(ctx)
+        .author_id(ctx.author().id)
+        .channel_id(ctx.channel_id())
+        .timeout(std::time::Duration::from_secs(120))
+        .filter(move |mci| mci.data.custom_id == button_uuid.to_string())
+        .await
+    {
+        let response = request_purrbot(PurrbotImageChoices::Okami);
+        let mut msg = mci.message.clone();
+        msg.edit(ctx, |m| {
+            m.content("")
+                .embed(|e| {
+                    e.title("Random Okami");
+                    e.image(&response.link);
+                    e.field("API Response Time", &response.time, true)
+                })
+                .components(|c| {
+                    c.create_action_row(|ar| {
+                        ar.create_button(|b| {
+                            b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                                .label("New Okami")
+                                .custom_id(button_uuid)
+                        })
+                    })
+                })
+        })
+        .await?;
+
+        mci.create_interaction_response(ctx, |ir| {
+            ir.kind(poise::serenity_prelude::InteractionResponseType::DeferredUpdateMessage)
+        })
+        .await?;
+    }
+
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+pub async fn kitsune(ctx: Context<'_>) -> Result<(), Error> {
+    let button_uuid = ctx.id();
+    let parsed = request_purrbot(PurrbotImageChoices::Kitsune);
+
+    ctx.send(|m| {
+        m.content("")
+            .embed(|e| {
+                e.title("Random Kitsune");
+                e.image(&parsed.link);
+                e.field("API Response Time", &parsed.time, true)
+            })
+            .components(|c| {
+                c.create_action_row(|ar| {
+                    ar.create_button(|b| {
+                        b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                            .label("New Kitsune")
+                            .custom_id(button_uuid)
+                    })
+                })
+            })
+    })
+    .await?;
+
+    while let Some(mci) = poise::serenity_prelude::CollectComponentInteraction::new(ctx)
+        .author_id(ctx.author().id)
+        .channel_id(ctx.channel_id())
+        .timeout(std::time::Duration::from_secs(120))
+        .filter(move |mci| mci.data.custom_id == button_uuid.to_string())
+        .await
+    {
+        let response = request_purrbot(PurrbotImageChoices::Kitsune);
+        let mut msg = mci.message.clone();
+        msg.edit(ctx, |m| {
+            m.content("")
+                .embed(|e| {
+                    e.title("Random Kitsune");
+                    e.image(&response.link);
+                    e.field("API Response Time", &response.time, true)
+                })
+                .components(|c| {
+                    c.create_action_row(|ar| {
+                        ar.create_button(|b| {
+                            b.style(poise::serenity_prelude::ButtonStyle::Primary)
+                                .label("New Kitsune")
                                 .custom_id(button_uuid)
                         })
                     })

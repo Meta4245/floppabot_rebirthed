@@ -15,3 +15,6 @@ poise = "0.5.2"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.91"
 substring = "1.4.5"
+figlet-rs = "0.1.5"
+uwuify = "0.2.2"
+nekosbest = "0.15"
